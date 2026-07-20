@@ -1,0 +1,31 @@
+name: Release (manual → GitHub Packages @latest)
+
+# Production release, ONLY on the manual button. Bumps the version in
+# package.json, builds, publishes the npm package to GitHub Packages, and pushes
+# the version-bump commit + annotated tag back to main. Pipeline body in
+# _build.yml.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+concurrency:
+  group: release-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    uses: ./.github/workflows/_build.yml
+    with:
+      publish_tag: latest
+      bump: ${{ inputs.bump }}
+    secrets: inherit

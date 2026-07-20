@@ -1,0 +1,105 @@
+name: Build (reusable)
+
+# Single source of truth for tds-tools-contract. Called by ci.yml (PR gate, no
+# publish), dev.yml (prerelease -> @dev dist-tag) and release.yml (version bump
+# -> @latest + push tag). Behaviour selected via the inputs below.
+#
+# tds-tools-contract is npm-only (no PHP half): the whole SDK is frontend/
+# build-time TypeScript. The tools site + tool packages consume it from GitHub
+# Packages. The vitest suite gates every run.
+
+on:
+  workflow_call:
+    inputs:
+      publish_tag:
+        description: "none = build only (CI); 'dev' = prerelease @dev; 'latest' = real release."
+        required: false
+        type: string
+        default: none
+      bump:
+        description: Version bump for a 'latest' release (patch | minor | major).
+        required: false
+        type: string
+        default: patch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # No `permissions:` block here - a reusable workflow cannot request more than
+    # the caller's token holds, and the repo default is read-only. Each caller
+    # grants least-privilege permissions instead.
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@tracht-digital-solutions'
+
+      - name: Install
+        # NOT `npm ci` + a committed lockfile: a Windows-generated package-lock
+        # pins only the win32 rollup/esbuild optional binaries, so `npm ci` on
+        # the Linux runner dies. The project convention is
+        # `npm install --no-package-lock` — resolves fresh per-platform.
+        run: npm install --no-package-lock
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Test
+        run: npm run test:run
+
+      - name: Build
+        run: npm run build
+
+      # --- Publish -----------------------------------------------------------
+      - name: Publish prerelease (@dev)
+        if: ${{ inputs.publish_tag == 'dev' }}
+        run: |
+          base=$(node -p "require('./package.json').version")
+          npm version "${base}-dev.${{ github.run_number }}" --no-git-tag-version
+          npm publish --tag dev
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Release (@latest) + push tag
+        if: ${{ inputs.publish_tag == 'latest' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          new=$(npm version ${{ inputs.bump }} --no-git-tag-version)
+          git add package.json
+          git commit -m "release: ${new}"
+          git tag -a "${new}" -m "release ${new}"
+          npm publish
+          git push --follow-tags origin HEAD:main
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      # --- GitHub Packages version retention ---------------------------------
+      - name: Prune old prerelease package versions (keep newest 5)
+        continue-on-error: true  # best-effort housekeeping; needs delete:packages
+        if: ${{ inputs.publish_tag != 'none' }}
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: tds-tools-contract
+          package-type: npm
+          min-versions-to-keep: 5
+          delete-only-pre-release-versions: 'true'
+          token: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Prune old stable package versions (keep newest 10)
+        continue-on-error: true  # best-effort housekeeping; needs delete:packages
+        if: ${{ inputs.publish_tag == 'latest' }}
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: tds-tools-contract
+          package-type: npm
+          min-versions-to-keep: 10
+          ignore-versions: '^.*-.*$'
+          token: ${{ secrets.PACKAGE_TOKEN }}
