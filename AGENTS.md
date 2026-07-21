@@ -1,12 +1,12 @@
-# AGENTS.md — tds-tools-contract
+# AGENTS.md — tds-tools-contract-pkg
 
 Authoritative architecture/gotcha doc for this repo. Read before non-trivial changes.
 
 ## What this is
 
-The **tools-platform contract**: the SDK the public tools site (`tds-tools`) and
+The **tools-platform contract**: the SDK the public tools site (`tds-tools-frontend`) and
 every tool package (`tds-tool-*`) build against. It is the frontend-only twin of
-`tds-panel-contract` — modelled directly on it (`defineExtension`→`defineToolPack`,
+`tds-panel-contract-pkg` — modelled directly on it (`defineExtension`→`defineToolPack`,
 `composeExtensions`→`composeToolPacks`, `panelHost`→`toolHost`).
 
 ## Architecture
@@ -14,9 +14,9 @@ every tool package (`tds-tool-*`) build against. It is the frontend-only twin of
 - **Build-time composition, not runtime plugins.** The site imports each pack's
   `ToolPackManifest` and `composeToolPacks` folds them into one `ComposedCatalog`.
   Composition happens during `astro build` (`output:static`, no Node on prod).
-- **Frontend-only.** No PHP half (unlike `tds-panel-contract`). The dynamic bits
+- **Frontend-only.** No PHP half (unlike `tds-panel-contract-pkg`). The dynamic bits
   — admin-controlled catalog (enabled/requires-login/premium/price) and the
-  entitlement + Stripe checkout — live in the **`tds-ext-tools`** panel
+  entitlement + Stripe checkout — live in the **`tds-ext-tools-pkg`** panel
   extension + `tds-core-panel-api`. A tool declares only *defaults*
   (`requiresLoginDefault`, `premiumDefault`, `priceCentsDefault`); the admin
   catalog overrides them at runtime (merged in the site's `catalog.ts`).
@@ -53,4 +53,4 @@ npm run type-check
 npm run test:run     # vitest — composeToolPacks collision/cycle/order coverage
 ```
 
-Push to `main` auto-releases a patch @latest (+ dispatches a tds-tools rebuild); the manual "Release" button is for a minor/major bump.
+Push to `main` auto-releases a patch @latest (+ dispatches a tds-tools-frontend rebuild); the manual "Release" button is for a minor/major bump.

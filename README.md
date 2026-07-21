@@ -1,13 +1,13 @@
 # @tracht-digital-solutions/tds-tools-contract
 
-The **tools-platform contract** — the SDK the public tools site (`tds-tools`) and
+The **tools-platform contract** — the SDK the public tools site (`tds-tools-frontend`) and
 every tool package (`tds-tool-*`) build against. It is the tools-site twin of
-`tds-panel-contract`, but **frontend-only**: pure TypeScript types +
+`tds-panel-contract-pkg`, but **frontend-only**: pure TypeScript types +
 build-time composition helpers. There is no runtime plugin loading — the site
 imports each package's manifest and folds it into one static `dist/`.
 
 > The admin-controlled catalog (enabled / requires-login / premium / price) and
-> the entitlement + Stripe logic live in the **`tds-ext-tools`** panel extension,
+> the entitlement + Stripe logic live in the **`tds-ext-tools-pkg`** panel extension,
 > not here. A tool package declares only the **defaults**; the catalog overrides
 > them at runtime.
 
@@ -60,7 +60,7 @@ export default defineToolPack({
 `component` is a **package subpath** (resolved via the package's `exports`),
 never a local relative path.
 
-## Composing in the site (`tds-tools`)
+## Composing in the site (`tds-tools-frontend`)
 
 ```js
 // astro.config.mjs

@@ -42,6 +42,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Tracht-Digital-Solutions/tds-tools-contract.git"
+    "url": "git+https://github.com/Tracht-Digital-Solutions/tds-tools-contract-pkg.git"
   }
 }
