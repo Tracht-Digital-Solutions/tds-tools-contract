@@ -1,12 +1,11 @@
 name: Build (reusable)
 
 # Single source of truth for tds-tools-contract. Called by ci.yml (PR gate, no
-# publish), dev.yml (prerelease -> @dev dist-tag) and release.yml (version bump
-# -> @latest + push tag). Behaviour selected via the inputs below.
+# publish), and by dev.yml (push → @latest patch) / release.yml (manual bump).
+# A @latest publish also dispatches a rebuild of the dependent site.
 #
 # tds-tools-contract is npm-only (no PHP half): the whole SDK is frontend/
-# build-time TypeScript. The tools site + tool packages consume it from GitHub
-# Packages. The vitest suite gates every run.
+# build-time TypeScript. The vitest suite gates every run.
 
 on:
   workflow_call:
@@ -21,6 +20,11 @@ on:
         required: false
         type: string
         default: patch
+      rebuild_site:
+        description: Repo whose release.yml to dispatch after a @latest publish (site rebuild). Empty = none.
+        required: false
+        type: string
+        default: ''
 
 jobs:
   build:
@@ -44,10 +48,6 @@ jobs:
           scope: '@tracht-digital-solutions'
 
       - name: Install
-        # NOT `npm ci` + a committed lockfile: a Windows-generated package-lock
-        # pins only the win32 rollup/esbuild optional binaries, so `npm ci` on
-        # the Linux runner dies. The project convention is
-        # `npm install --no-package-lock` — resolves fresh per-platform.
         run: npm install --no-package-lock
 
       - name: Type check
@@ -70,18 +70,26 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
 
       - name: Release (@latest) + push tag
+        # The bump commit carries [skip ci] so pushing it back to main does NOT
+        # re-trigger the auto-release workflow (no publish loop).
         if: ${{ inputs.publish_tag == 'latest' }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           new=$(npm version ${{ inputs.bump }} --no-git-tag-version)
           git add package.json
-          git commit -m "release: ${new}"
+          git commit -m "release: ${new} [skip ci]"
           git tag -a "${new}" -m "release ${new}"
           npm publish
           git push --follow-tags origin HEAD:main
         env:
           NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Dispatch site rebuild
+        if: ${{ inputs.publish_tag == 'latest' && inputs.rebuild_site != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: gh workflow run release.yml -R Tracht-Digital-Solutions/${{ inputs.rebuild_site }}
 
       # --- GitHub Packages version retention ---------------------------------
       - name: Prune old prerelease package versions (keep newest 5)
