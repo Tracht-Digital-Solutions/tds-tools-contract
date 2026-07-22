@@ -1,6 +1,6 @@
 {
   "name": "@tracht-digital-solutions/tds-tools-contract",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "The tools-platform contract (SDK): TypeScript types + build-time composition helpers that let the public tools site (tds-tools) discover and compose tool packages (tds-tool-*) at build time. Frontend-only; the admin catalog + premium live in the tds-ext-tools panel extension.",
   "license": "UNLICENSED",
   "private": false,
